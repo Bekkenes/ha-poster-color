@@ -1,0 +1,130 @@
+# Example: cinema mode for a living room light ring.
+# Replace every entity ID with your own before use.
+#
+# Requirements:
+#   - sensor.<name>_plakatfarge from the Poster Color integration
+#   - input_boolean.cinema_mode helper
+#   - a colour-capable light ring
+
+- id: '1794060000001'
+  alias: Cinema mode (living room)
+  description: >-
+    Turns off the main lights and sets the light ring to the poster colour while
+    something is playing on the Apple TV. Restores the lights on pause, stop or
+    when the Apple TV is turned off (menu/idle is ignored).
+  mode: restart
+  triggers:
+  - trigger: state
+    entity_id: media_player.living_room_apple_tv
+    id: playing
+    to: playing
+  - trigger: state
+    entity_id: media_player.living_room_apple_tv
+    id: stopped
+    to:
+    - paused
+    - 'off'
+    - standby
+  - trigger: state
+    entity_id: sensor.living_room_poster_color
+    id: color
+  - trigger: homeassistant
+    event: start
+    id: start
+  actions:
+  - if:
+    - condition: trigger
+      id: start
+    then:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.cinema_mode
+  - choose:
+    - conditions:
+      - condition: trigger
+        id:
+        - playing
+        - start
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        state: playing
+      - condition: state
+        entity_id: sun.sun
+        state: below_horizon
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.cinema_mode
+          state: 'off'
+        then:
+        - action: scene.create
+          data:
+            scene_id: cinema_mode_previous_lights
+            snapshot_entities:
+            - light.living_room_ceiling
+            - light.living_room_ring
+            - light.living_room_floor_lamp
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.cinema_mode
+      - action: light.turn_off
+        target:
+          entity_id:
+          - light.living_room_ceiling
+          - light.living_room_floor_lamp
+        data:
+          transition: 2
+      - action: light.turn_on
+        target:
+          entity_id: light.living_room_ring
+        data:
+          rgb_color: "{{ state_attr('sensor.living_room_poster_color', 'rgb_color') or [255, 163, 72] }}"
+          brightness: 20
+          transition: 2
+    - conditions:
+      - condition: trigger
+        id: color
+      - condition: state
+        entity_id: input_boolean.cinema_mode
+        state: 'on'
+      - condition: state
+        entity_id: light.living_room_ring
+        state: 'on'
+      sequence:
+      - action: light.turn_on
+        target:
+          entity_id: light.living_room_ring
+        data:
+          rgb_color: "{{ state_attr('sensor.living_room_poster_color', 'rgb_color') or [255, 163, 72] }}"
+          brightness: 20
+          transition: 2
+    - conditions:
+      - condition: trigger
+        id: stopped
+      - condition: state
+        entity_id: input_boolean.cinema_mode
+        state: 'on'
+      sequence:
+      - delay:
+          seconds: 30
+      - condition: not
+        conditions:
+        - condition: state
+          entity_id: media_player.living_room_apple_tv
+          state: playing
+      - action: scene.turn_on
+        target:
+          entity_id: scene.cinema_mode_previous_lights
+        data:
+          transition: 2
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.cinema_mode
+
+# Optional: if you use Blackshome's "Sensor Light" blueprint for presence
+# lighting, add this to that automation so it does not fight cinema mode:
+#
+#   include_bypass:
+#   - bypass_enabled_stop
+#   motion_bypass_lights_stop:
+#   - input_boolean.cinema_mode

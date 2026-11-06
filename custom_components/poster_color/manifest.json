@@ -1,0 +1,14 @@
+{
+  "domain": "poster_color",
+  "name": "Poster Color",
+  "dependencies": [
+    "http",
+    "media_player"
+  ],
+  "documentation": "https://github.com/Bekkenes/ha-poster-color",
+  "iot_class": "local_push",
+  "requirements": [
+    "Pillow"
+  ],
+  "version": "0.1.0"
+}
