@@ -80,7 +80,7 @@ target:
   the poster colour at ~8 % brightness
 - on a new title → update the ring colour
 - on `paused`/`off`/`standby` for 30 s → restore the snapshot
-- ignores `idle`, so browsing the Apple TV menu does not turn the lights on
+- treats `idle` as stopped after the delay, so closing an app restores the lights
 - only runs when the sun is below the horizon
 
 Replace the entity IDs in the example with your own.
