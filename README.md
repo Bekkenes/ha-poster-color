@@ -46,6 +46,10 @@ sensor:
   - platform: poster_color
     media_player: media_player.living_room_apple_tv
     name: Living room
+    # optional: add or override the app colours used when there is no artwork
+    fallbacks:
+      YouTube: [255, 40, 40]
+      TiviMax: [0, 120, 200]
 ```
 
 This creates `sensor.living_room_plakatfarge` (the configured `name` plus
@@ -59,7 +63,8 @@ Attributes on the sensor:
 | `media_title` | The title the colour came from |
 | `app_name` | The app that was playing |
 | `has_artwork` | `true` when a real poster was used |
-| `fallback` | `true` when the amber fallback was used |
+| `fallback` | `true` when no artwork could be used |
+| `color_source` | `artwork`, `app` or `amber` |
 
 ### Service
 
@@ -92,7 +97,10 @@ turn the lights back on (or off) during a movie.
 ## Limitations
 
 - One colour per title, not per scene.
-- Apps that expose no metadata/artwork use the fallback colour.
+- Apps that expose no metadata/artwork use a per-app fallback colour: YouTube red,
+  Netflix red, Viaplay purple, NRK blue, TV 2 blue, Disney+ blue, HBO Max purple,
+  Plex orange, Streamyfin blue, Apple TV blue, Prime Video blue, Spotify green,
+  VLC orange. Unknown apps use warm amber.
 - The target light must support colour (`rgb_color`).
 - Zigbee lights have noticeable latency and limited colour accuracy.
 - The poster is analysed once per title change; there is no per-frame sync.

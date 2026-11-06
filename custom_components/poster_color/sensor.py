@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import colorsys
 import logging
+import re
 from io import BytesIO
 
 import aiohttp
@@ -21,12 +22,35 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.util import slugify
 
-from . import CONF_MEDIA_PLAYER, CONF_NAME, DATA_ENTITIES, DOMAIN
+from . import (
+    CONF_FALLBACKS,
+    CONF_MEDIA_PLAYER,
+    CONF_NAME,
+    DATA_ENTITIES,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 # Varm amber når det ikke finnes artwork å hente farge fra.
 FALLBACK_RGB = (255, 163, 72)
+
+# Farge per app når plakat mangler. Matches mot app_name og app_id.
+APP_FALLBACKS = (
+    (("youtube",), (255, 40, 40)),
+    (("netflix",), (229, 9, 20)),
+    (("viaplay",), (150, 90, 255)),
+    (("nrk",), (0, 120, 200)),
+    (("tv2",), (0, 90, 210)),
+    (("disney",), (60, 80, 220)),
+    (("hbomax", "hbo"), (120, 40, 220)),
+    (("plex",), (229, 160, 13)),
+    (("streamyfin",), (70, 150, 255)),
+    (("appletv", "tvwatchlist"), (120, 140, 255)),
+    (("primevideo", "aiv"), (0, 150, 220)),
+    (("spotify",), (30, 200, 90)),
+    (("vlc",), (255, 130, 0)),
+)
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 FETCH_TIMEOUT = 15
@@ -36,6 +60,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_MEDIA_PLAYER): cv.entity_id,
         vol.Optional(CONF_NAME, default="Plakatfarge"): cv.string,
+        vol.Optional(CONF_FALLBACKS, default={}): vol.Schema(
+            {
+                cv.string: vol.All(
+                    [vol.All(vol.Coerce(int), vol.Range(min=0, max=255))],
+                    vol.Length(min=3, max=3),
+                )
+            }
+        ),
     }
 )
 
@@ -80,6 +112,7 @@ class PosterColorSensor(SensorEntity):
     def __init__(self, hass: HomeAssistant, config: dict) -> None:
         self.hass = hass
         self._media_player: str = config[CONF_MEDIA_PLAYER]
+        self._fallbacks: dict = config.get(CONF_FALLBACKS) or {}
         self._attr_name = f"{config[CONF_NAME]} plakatfarge"
         self._attr_unique_id = f"poster_color_{slugify(self._media_player)}"
         self._attr_native_value = None
@@ -89,6 +122,7 @@ class PosterColorSensor(SensorEntity):
         self._app: str | None = None
         self._has_artwork = False
         self._fallback = True
+        self._color_source = "amber"
 
         self._last_key: tuple[str | None, str | None] = (None, None)
         self._cancel_delay = None
@@ -145,11 +179,13 @@ class PosterColorSensor(SensorEntity):
 
             title = state.attributes.get("media_title")
             app = state.attributes.get("app_name")
+            app_id = state.attributes.get("app_id")
             picture = state.attributes.get("entity_picture")
 
             rgb: tuple[int, int, int] | None = None
             palette_size = 0
             has_artwork = False
+            source = "artwork"
 
             if picture:
                 try:
@@ -166,13 +202,14 @@ class PosterColorSensor(SensorEntity):
                     )
 
             if rgb is None:
-                rgb = FALLBACK_RGB
+                rgb, source = _fallback_color(app, app_id, self._fallbacks)
 
             self._rgb = [int(channel) for channel in rgb]
             self._title = title
             self._app = app
             self._has_artwork = has_artwork
-            self._fallback = not has_artwork
+            self._fallback = source != "artwork"
+            self._color_source = source
             self._attr_native_value = "#{:02x}{:02x}{:02x}".format(*rgb)
             self.async_write_ha_state()
 
@@ -184,6 +221,7 @@ class PosterColorSensor(SensorEntity):
                 "hex": self._attr_native_value,
                 "has_artwork": has_artwork,
                 "fallback": self._fallback,
+                "color_source": source,
                 "palette_size": palette_size,
             }
 
@@ -222,6 +260,7 @@ class PosterColorSensor(SensorEntity):
             "rgb_color": self._rgb,
             "has_artwork": self._has_artwork,
             "fallback": self._fallback,
+            "color_source": self._color_source,
         }
 
 
@@ -283,3 +322,29 @@ def _extract_color(raw: bytes) -> tuple[tuple[int, int, int], int]:
         (round(red * 255), round(green * 255), round(blue * 255)),
         len(colors),
     )
+
+
+def _normalise(value: str | None) -> str:
+    """Lowercase and strip everything that is not a letter or digit."""
+    return re.sub(r"[^a-z0-9]", "", (value or "").lower())
+
+
+def _fallback_color(
+    app_name: str | None,
+    app_id: str | None,
+    overrides: dict,
+) -> tuple[tuple[int, int, int], str]:
+    """Pick a colour for the app when there is no artwork to analyse."""
+    name = _normalise(app_name)
+    ident = _normalise(app_id)
+
+    for key, rgb in (overrides or {}).items():
+        token = _normalise(key)
+        if token and (token in name or token in ident):
+            return tuple(int(channel) for channel in rgb), "app"
+
+    for tokens, rgb in APP_FALLBACKS:
+        if any(token in name or token in ident for token in tokens):
+            return rgb, "app"
+
+    return FALLBACK_RGB, "amber"
