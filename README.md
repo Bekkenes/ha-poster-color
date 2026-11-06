@@ -97,10 +97,19 @@ turn the lights back on (or off) during a movie.
 ## Limitations
 
 - One colour per title, not per scene.
-- Apps that expose no metadata/artwork use a per-app fallback colour: YouTube red,
-  Netflix red, Viaplay purple, NRK blue, TV 2 blue, Disney+ blue, HBO Max purple,
-  Plex orange, Streamyfin blue, Apple TV blue, Prime Video blue, Spotify green,
-  VLC orange. Unknown apps use warm amber.
+- Apps that expose no metadata/artwork use a per-app fallback colour.
+
+  **US:** YouTube, Netflix, Hulu, Peacock, Paramount+, Pluto TV, Tubi, Crunchyroll,
+  Sling, Fubo, ESPN, Discovery+, AMC+, Starz, Prime Video, Disney+, HBO Max/Max,
+  Plex, Streamyfin, Apple TV, Spotify, VLC.
+
+  **Europe:** Viaplay, NRK, TV 2, TV 4, SVT, Yle, DR, BBC iPlayer, ITVX,
+  Channel 4, NOW, Sky/SkyShowtime, RTÉ, RTL+, Joyn, ZDF, ARD Mediathek,
+  France.tv, TF1, M6, RaiPlay, Movistar+, Rakuten TV, DAZN, Eurosport, MUBI,
+  Twitch, Deezer, Tidal, SoundCloud, TiviMax.
+
+  Unknown apps use warm amber. Add or override entries with the `fallbacks:`
+  config key.
 - The target light must support colour (`rgb_color`).
 - Zigbee lights have noticeable latency and limited colour accuracy.
 - The poster is analysed once per title change; there is no per-frame sync.
