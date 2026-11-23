@@ -95,6 +95,7 @@ APP_FALLBACKS = (
     (("soundcloud",), (255, 85, 0)),
 )
 
+MEDIA_PLAYER_DOMAIN = "media_player"
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 FETCH_TIMEOUT = 15
 ARTWORK_DELAY = 1.5
@@ -180,6 +181,14 @@ class PosterColorSensor(SensorEntity):
         )
         if self._last_key != (None, None):
             self._schedule_refresh()
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._cancel_delay is not None:
+            self._cancel_delay()
+            self._cancel_delay = None
+        entities = self.hass.data.get(DATA_ENTITIES, [])
+        if self in entities:
+            entities.remove(self)
 
     @callback
     def _handle_state_change(self, event) -> None:
@@ -269,6 +278,34 @@ class PosterColorSensor(SensorEntity):
             }
 
     async def _fetch_image(self, picture: str) -> bytes:
+        raw = await self._fetch_from_entity()
+        if raw is None:
+            raw = await self._fetch_from_url(picture)
+        if len(raw) > MAX_IMAGE_BYTES:
+            raise ValueError("bildet er for stort")
+        return raw
+
+    async def _fetch_from_entity(self) -> bytes | None:
+        """Ask the media player entity for its image directly (no HTTP, no token).
+
+        Works regardless of SSL/port setup. Returns None if not possible.
+        """
+        component = self.hass.data.get(MEDIA_PLAYER_DOMAIN)
+        get_entity = getattr(component, "get_entity", None)
+        if get_entity is None:
+            return None
+        entity = get_entity(self._media_player)
+        if entity is None:
+            return None
+        try:
+            async with asyncio.timeout(FETCH_TIMEOUT):
+                raw, _content_type = await entity.async_get_media_image()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Direkte bildehenting feilet for %s: %s", self._media_player, err)
+            return None
+        return raw or None
+
+    async def _fetch_from_url(self, picture: str) -> bytes:
         url = picture
         if url.startswith("/"):
             port = getattr(self.hass.http, "server_port", 8123)
@@ -281,17 +318,10 @@ class PosterColorSensor(SensorEntity):
         async with session.get(url, timeout=timeout) as response:
             if response.status != 200:
                 raise ValueError(f"HTTP {response.status}")
-            length = response.headers.get("Content-Length")
-            if length is not None:
-                try:
-                    if int(length) > MAX_IMAGE_BYTES:
-                        raise ValueError("bildet er for stort")
-                except ValueError:
-                    pass
-            raw = await response.read()
-
-        if len(raw) > MAX_IMAGE_BYTES:
-            raise ValueError("bildet er for stort")
+            length = response.content_length
+            if length is not None and length > MAX_IMAGE_BYTES:
+                raise ValueError("bildet er for stort")
+            raw = await response.content.read(MAX_IMAGE_BYTES + 1)
         return raw
 
     @property
@@ -344,7 +374,7 @@ def _extract_color(raw: bytes) -> tuple[tuple[int, int, int], int]:
         if best is None:
             pixels = [
                 pixel
-                for pixel in image.getdata()
+                for pixel in _pixels(image)
                 if max(pixel) > 24 and min(pixel) < 235
             ]
             if not pixels:
@@ -367,9 +397,38 @@ def _extract_color(raw: bytes) -> tuple[tuple[int, int, int], int]:
     )
 
 
+def _pixels(image):
+    """Pixel iterator that works on both old and new Pillow (getdata goes away in 14)."""
+    flattened = getattr(image, "get_flattened_data", None)
+    return flattened() if flattened is not None else image.getdata()
+
+
 def _normalise(value: str | None) -> str:
     """Lowercase and strip everything that is not a letter or digit."""
     return re.sub(r"[^a-z0-9]", "", (value or "").lower())
+
+
+def _candidates(app_name: str | None, app_id: str | None) -> set[str]:
+    """Words to match app fallbacks against.
+
+    "TV 2 Play" -> {"tv", "2", "play", "tv2play"}; "com.netflix.Netflix" ->
+    {"com", "netflix"}. Matching is done on the start of each word, so "itv"
+    matches "itvx" but no longer "activity", and "yle" no longer matches "style".
+    """
+    words: set[str] = set()
+    for value in (app_name, app_id):
+        if not value:
+            continue
+        parts = [_normalise(part) for part in re.split(r"[^A-Za-z0-9]+", value)]
+        words.update(part for part in parts if part)
+        whole = _normalise(value)
+        if whole:
+            words.add(whole)
+    return words
+
+
+def _matches(token: str, words: set[str]) -> bool:
+    return bool(token) and any(word.startswith(token) for word in words)
 
 
 def _fallback_color(
@@ -378,16 +437,14 @@ def _fallback_color(
     overrides: dict,
 ) -> tuple[tuple[int, int, int], str]:
     """Pick a colour for the app when there is no artwork to analyse."""
-    name = _normalise(app_name)
-    ident = _normalise(app_id)
+    words = _candidates(app_name, app_id)
 
     for key, rgb in (overrides or {}).items():
-        token = _normalise(key)
-        if token and (token in name or token in ident):
+        if _matches(_normalise(key), words):
             return tuple(int(channel) for channel in rgb), "app"
 
     for tokens, rgb in APP_FALLBACKS:
-        if any(token in name or token in ident for token in tokens):
+        if any(_matches(token, words) for token in tokens):
             return rgb, "app"
 
     return FALLBACK_RGB, "amber"

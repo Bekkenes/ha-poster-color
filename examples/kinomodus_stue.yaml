@@ -12,7 +12,7 @@
     Turns off the main lights and sets the light ring to the poster colour while
     something is playing on the Apple TV. Restores the lights on pause, when the
     Apple TV is turned off, or when it stays in the menu (idle) for 30 seconds.
-  mode: queued
+  mode: restart
   triggers:
   - trigger: state
     entity_id: media_player.living_room_apple_tv
@@ -26,8 +26,13 @@
     - 'off'
     - standby
     - idle
+    # Wait in the trigger, not with a delay: a colour update would otherwise
+    # be able to cancel the restore.
+    for:
+      seconds: 30
   - trigger: state
-    entity_id: sensor.living_room_poster_color
+    entity_id: sensor.living_room_plakatfarge
+    attribute: rgb_color
     id: color
   - trigger: homeassistant
     event: start
@@ -79,7 +84,7 @@
         target:
           entity_id: light.living_room_ring
         data:
-          rgb_color: "{{ state_attr('sensor.living_room_poster_color', 'rgb_color') or [255, 163, 72] }}"
+          rgb_color: "{{ state_attr('sensor.living_room_plakatfarge', 'rgb_color') or [255, 163, 72] }}"
           brightness: 20
           transition: 2
     - conditions:
@@ -96,7 +101,7 @@
         target:
           entity_id: light.living_room_ring
         data:
-          rgb_color: "{{ state_attr('sensor.living_room_poster_color', 'rgb_color') or [255, 163, 72] }}"
+          rgb_color: "{{ state_attr('sensor.living_room_plakatfarge', 'rgb_color') or [255, 163, 72] }}"
           brightness: 20
           transition: 2
     - conditions:
@@ -106,8 +111,6 @@
         entity_id: input_boolean.cinema_mode
         state: 'on'
       sequence:
-      - delay:
-          seconds: 30
       - condition: not
         conditions:
         - condition: state

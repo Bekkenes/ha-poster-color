@@ -11,8 +11,9 @@ Tested with an Apple TV 4K (tvOS) and Streamyfin/Plex, but it works with any
 ## How it works
 
 - Watches one media player entity.
-- When the title or artwork changes, downloads the artwork through Home
-  Assistant's own media proxy (`127.0.0.1`) and extracts a palette with Pillow.
+- When the title or artwork changes, asks the media player entity for its
+  artwork directly (falls back to Home Assistant's media proxy on `127.0.0.1`)
+  and extracts a palette with Pillow.
 - Discards near-black, near-white and grey colours, caps saturation and lifts
   brightness so the result works as dim ambient light instead of a neon blob.
 - Falls back to a warm amber when no artwork is available (common for Netflix
@@ -23,7 +24,7 @@ real-time colour requires HDMI capture hardware.
 
 ## Requirements
 
-- Home Assistant 2026.x or newer (uses `SupportsResponse` for the service)
+- Home Assistant 2023.7 or newer (uses `SupportsResponse` for the service)
 - `Pillow` — installed automatically from `manifest.json`
 
 ## Installation
@@ -84,8 +85,9 @@ target:
 - on `playing` → snapshot the lights, turn off the main lights, set the ring to
   the poster colour at ~8 % brightness
 - on a new title → update the ring colour
-- on `paused`/`off`/`standby` for 30 s → restore the snapshot
-- treats `idle` as stopped after the delay, so closing an app restores the lights
+- on `paused`/`idle`/`off`/`standby` for 30 s → restore the snapshot (the
+  30 s wait is in the trigger, so a colour update cannot cancel it)
+- only reacts to colour changes when `rgb_color` actually changes
 - only runs when the sun is below the horizon
 
 Replace the entity IDs in the example with your own.
@@ -116,8 +118,8 @@ turn the lights back on (or off) during a movie.
 
 ## Privacy and security
 
-The integration only reads `entity_picture` from the configured media player and
-fetches it through Home Assistant's media proxy on localhost. It stores nothing
+The integration asks the configured media player for its artwork directly, or
+fetches `entity_picture` through Home Assistant's media proxy on localhost. It stores nothing
 and never logs artwork URLs or tokens.
 
 Note that `entity_picture` URLs contain a signed media proxy token. Do not
