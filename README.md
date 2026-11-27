@@ -14,10 +14,22 @@ Tested with an Apple TV 4K (tvOS) and Streamyfin/Plex, but it works with any
 - When the title or artwork changes, asks the media player entity for its
   artwork directly (falls back to Home Assistant's media proxy on `127.0.0.1`)
   and extracts a palette with Pillow.
-- Discards near-black, near-white and grey colours, caps saturation and lifts
-  brightness so the result works as dim ambient light instead of a neon blob.
-- Falls back to a warm amber when no artwork is available (common for Netflix
-  on tvOS and some other streaming apps).
+- Picks the colour you would name for the image: every pixel votes for its hue,
+  weighted by how colourful it is. Grey, near-black and near-white pixels do not
+  vote, and skin tones only get a small vote, so big faces do not turn every
+  poster peach.
+- **Jellyfin (automatic):** if the player gives no usable colour (no artwork, a
+  black-and-white logo, a grey still) and Home Assistant's
+  [Jellyfin integration](https://www.home-assistant.io/integrations/jellyfin/)
+  is playing the same title, the episode image, the series poster and the
+  series backdrop are tried in that order. Nothing to configure and no API key:
+  it reuses the Jellyfin connection Home Assistant already has. Works for any
+  Jellyfin client (Moonfin, Streamyfin, Swiftfin, Infuse, the web client …),
+  also when it plays on an Apple TV or Google TV.
+- Falls back to a per-app colour, then warm amber, when there is still no
+  colour (common for Netflix on tvOS and some other streaming apps).
+- The sensor's `artwork_source` attribute tells where the colour came from:
+  `media_player`, `jellyfin_episode`, `jellyfin_series` or `jellyfin_backdrop`.
 
 It updates once per title, not per frame. This is **not** an ambilight clone:
 real-time colour requires HDMI capture hardware.
@@ -119,8 +131,10 @@ turn the lights back on (or off) during a movie.
 ## Privacy and security
 
 The integration asks the configured media player for its artwork directly, or
-fetches `entity_picture` through Home Assistant's media proxy on localhost. It stores nothing
-and never logs artwork URLs or tokens.
+fetches `entity_picture` through Home Assistant's media proxy on localhost. With
+Jellyfin it fetches images from your own Jellyfin server through Home
+Assistant's existing connection. It stores nothing and never logs artwork URLs,
+tokens or API keys.
 
 Note that `entity_picture` URLs contain a signed media proxy token. Do not
 publish debug logs or screenshots that show that URL.

@@ -100,6 +100,7 @@ MEDIA_PLAYER_DOMAIN = "media_player"
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 FETCH_TIMEOUT = 15
 ARTWORK_DELAY = 1.5
+JELLYFIN_RETRY = 8
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -168,6 +169,9 @@ class PosterColorSensor(SensorEntity):
         self._has_artwork = False
         self._fallback = True
         self._color_source = "amber"
+        self._artwork_source: str | None = None
+        self._jellyfin_retry = None
+        self._jellyfin_retried: tuple[str | None, str | None] | None = None
 
         self._last_key: tuple[str | None, str | None] = (None, None)
         self._cancel_delay = None
@@ -187,6 +191,9 @@ class PosterColorSensor(SensorEntity):
         if self._cancel_delay is not None:
             self._cancel_delay()
             self._cancel_delay = None
+        if self._jellyfin_retry is not None:
+            self._jellyfin_retry()
+            self._jellyfin_retry = None
         entities = self.hass.data.get(DATA_ENTITIES, [])
         if self in entities:
             entities.remove(self)
@@ -240,6 +247,7 @@ class PosterColorSensor(SensorEntity):
             has_artwork = False
             source = "artwork"
 
+            artwork_source = None
             if picture:
                 try:
                     raw = await self._fetch_image(picture)
@@ -247,12 +255,36 @@ class PosterColorSensor(SensorEntity):
                         _extract_color, raw
                     )
                     has_artwork = True
+                    artwork_source = "media_player"
                 except Exception as err:  # noqa: BLE001
                     _LOGGER.debug(
                         "Kunne ikke hente plakatfarge for %s: %s",
                         self._media_player,
                         err,
                     )
+
+            if rgb is None and title:
+                # The player gave no usable colour (no artwork, a black-and-white
+                # logo, a grey still). If Jellyfin is playing the same thing, try
+                # the episode image and the series poster from there.
+                found, images = self._jellyfin_images(
+                    title, state.attributes.get("media_series_title")
+                )
+                for label, url in images:
+                    try:
+                        raw = await self._fetch_from_url(url)
+                        rgb, palette_size = await self.hass.async_add_executor_job(
+                            _extract_color, raw
+                        )
+                        has_artwork = True
+                        artwork_source = label
+                        break
+                    except Exception as err:  # noqa: BLE001
+                        _LOGGER.debug("Jellyfin %s ga ingen farge: %s", label, type(err).__name__)
+                if not found and self._jellyfin_available():
+                    # Jellyfin often reports the session a few seconds after the
+                    # player does; look once more shortly.
+                    self._schedule_jellyfin_retry()
 
             if rgb is None:
                 rgb, source = _fallback_color(app, app_id, self._fallbacks)
@@ -263,6 +295,7 @@ class PosterColorSensor(SensorEntity):
             self._has_artwork = has_artwork
             self._fallback = source != "artwork"
             self._color_source = source
+            self._artwork_source = artwork_source
             self._attr_native_value = "#{:02x}{:02x}{:02x}".format(*rgb)
             self.async_write_ha_state()
 
@@ -275,8 +308,85 @@ class PosterColorSensor(SensorEntity):
                 "has_artwork": has_artwork,
                 "fallback": self._fallback,
                 "color_source": source,
+                "artwork_source": artwork_source,
                 "palette_size": palette_size,
             }
+
+    def _jellyfin_available(self) -> bool:
+        entries = self.hass.config_entries
+        if hasattr(entries, "async_loaded_entries"):
+            return bool(entries.async_loaded_entries("jellyfin"))
+        return bool(entries.async_entries("jellyfin"))
+
+    @callback
+    def _schedule_jellyfin_retry(self) -> None:
+        if self._jellyfin_retry is not None or self._jellyfin_retried == self._last_key:
+            return
+        self._jellyfin_retried = self._last_key
+
+        async def _retry(_now) -> None:
+            self._jellyfin_retry = None
+            if self._color_source != "artwork":
+                await self.async_refresh_now()
+
+        self._jellyfin_retry = async_call_later(self.hass, JELLYFIN_RETRY, _retry)
+
+    def _jellyfin_images(
+        self, title: str, series_title: str | None
+    ) -> tuple[bool, list[tuple[str, str]]]:
+        """Image URLs for what Jellyfin is playing, if it matches this player.
+
+        Uses Home Assistant's own Jellyfin integration, so no extra setup or API
+        key is needed. Returns (session found, [(label, url), ...]).
+        """
+        component = self.hass.data.get(MEDIA_PLAYER_DOMAIN)
+        wanted = {_normalise(value) for value in (title, series_title) if value}
+        match = None
+        for entity in list(getattr(component, "entities", None) or []):
+            platform = getattr(entity, "platform", None)
+            if getattr(platform, "platform_name", None) != "jellyfin":
+                continue
+            item = getattr(entity, "now_playing", None)
+            if not item:
+                continue
+            if entity.entity_id == self._media_player:
+                match = entity
+                break
+            names = {
+                _normalise(item.get(key))
+                for key in ("SeriesName", "Name", "Album")
+                if item.get(key)
+            }
+            if wanted & names:
+                match = entity
+        if match is None:
+            return False, []
+
+        item = match.now_playing
+        client = getattr(getattr(match, "coordinator", None), "api_client", None)
+        api = getattr(client, "jellyfin", None)
+        if api is None:
+            return True, []
+
+        candidates: list[tuple[str, str, str]] = []
+        tags = item.get("ImageTags") or {}
+        if "Primary" in tags:
+            candidates.append(("jellyfin_episode", item["Id"], "Primary"))
+        if item.get("SeriesId"):
+            candidates.append(("jellyfin_series", item["SeriesId"], "Primary"))
+        backdrop = item.get("ParentBackdropItemId") or (
+            item["Id"] if item.get("BackdropImageTags") else None
+        )
+        if backdrop:
+            candidates.append(("jellyfin_backdrop", backdrop, "Backdrop"))
+
+        images: list[tuple[str, str]] = []
+        for label, item_id, art in candidates:
+            try:
+                images.append((label, api.artwork(item_id, art, 500)))
+            except Exception:  # noqa: BLE001
+                continue
+        return True, images
 
     async def _fetch_image(self, picture: str) -> bytes:
         raw = await self._fetch_from_entity()
@@ -335,6 +445,7 @@ class PosterColorSensor(SensorEntity):
             "has_artwork": self._has_artwork,
             "fallback": self._fallback,
             "color_source": self._color_source,
+            "artwork_source": self._artwork_source,
         }
 
 
