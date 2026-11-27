@@ -96,7 +96,7 @@ class PosterColorConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = {
             vol.Required(CONF_NAME): selector.TextSelector(),
             vol.Required(CONF_MEDIA_PLAYER): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="media_player")
+                selector.EntitySelectorConfig(domain=["media_player", "image"])
             ),
             **_settings_schema({}),
         }
@@ -117,7 +117,7 @@ class PosterColorOptionsFlow(OptionsFlow):
         values = entry_config(self.config_entry)
         schema = {
             vol.Required(CONF_MEDIA_PLAYER, default=values[CONF_MEDIA_PLAYER]): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="media_player")
+                selector.EntitySelectorConfig(domain=["media_player", "image"])
             ),
             **_settings_schema(values),
         }

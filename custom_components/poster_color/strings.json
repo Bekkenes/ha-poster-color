@@ -6,7 +6,7 @@
         "description": "Lights take the colour of what is playing. Add one entry per room.",
         "data": {
           "name": "Room name",
-          "media_player": "Media player",
+          "media_player": "Media player or image",
           "area": "Area",
           "control_lights": "Control lights (cinema mode)",
           "color_lights": "Colour lights",
@@ -21,7 +21,7 @@
         },
         "data_description": {
           "name": "Shown as the device name, e.g. Living room.",
-          "media_player": "The TV box or app that plays (Apple TV, Google TV, Jellyfin, Plex …).",
+          "media_player": "The TV box or app that plays (Apple TV, Google TV, Jellyfin, Plex …), or an image entity such as a game cover.",
           "area": "The room the entities belong to.",
           "control_lights": "Off: only make the colour sensor, for use in your own automations.",
           "color_lights": "Follow the poster colour while something plays. Pick lights, devices or whole areas; only colour lights are used.",
@@ -41,7 +41,7 @@
       "init": {
         "title": "Poster Color",
         "data": {
-          "media_player": "Media player",
+          "media_player": "Media player or image",
           "area": "Area",
           "control_lights": "Control lights (cinema mode)",
           "color_lights": "Colour lights",
@@ -55,7 +55,7 @@
           "fallbacks": "App colours"
         },
         "data_description": {
-          "media_player": "The TV box or app that plays (Apple TV, Google TV, Jellyfin, Plex …).",
+          "media_player": "The TV box or app that plays (Apple TV, Google TV, Jellyfin, Plex …), or an image entity such as a game cover.",
           "area": "The room the entities belong to.",
           "control_lights": "Off: only make the colour sensor, for use in your own automations.",
           "color_lights": "Follow the poster colour while something plays. Pick lights, devices or whole areas; only colour lights are used.",

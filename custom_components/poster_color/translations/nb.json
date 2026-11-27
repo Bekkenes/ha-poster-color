@@ -6,7 +6,7 @@
         "description": "Lysene får fargen fra det som spilles. Legg til én gang per rom.",
         "data": {
           "name": "Navn på rommet",
-          "media_player": "Mediespiller",
+          "media_player": "Mediespiller eller bilde",
           "area": "Område",
           "control_lights": "Styr lys (kinomodus)",
           "color_lights": "Fargelys",
@@ -21,7 +21,7 @@
         },
         "data_description": {
           "name": "Vises som navn på enheten, f.eks. Stue.",
-          "media_player": "TV-boksen eller appen som spiller (Apple TV, Google TV, Jellyfin, Plex …).",
+          "media_player": "TV-boksen eller appen som spiller (Apple TV, Google TV, Jellyfin, Plex …), eller et bilde-objekt, f.eks. spillcover.",
           "area": "Rommet entitetene hører til.",
           "control_lights": "Av: lag bare fargesensoren, til bruk i egne automasjoner.",
           "color_lights": "Følger plakatfargen mens noe spilles. Velg lys, enheter eller hele rom; bare fargelys brukes.",
@@ -41,7 +41,7 @@
       "init": {
         "title": "Poster Color",
         "data": {
-          "media_player": "Mediespiller",
+          "media_player": "Mediespiller eller bilde",
           "area": "Område",
           "control_lights": "Styr lys (kinomodus)",
           "color_lights": "Fargelys",
@@ -55,7 +55,7 @@
           "fallbacks": "Appfarger"
         },
         "data_description": {
-          "media_player": "TV-boksen eller appen som spiller (Apple TV, Google TV, Jellyfin, Plex …).",
+          "media_player": "TV-boksen eller appen som spiller (Apple TV, Google TV, Jellyfin, Plex …), eller et bilde-objekt, f.eks. spillcover.",
           "area": "Rommet entitetene hører til.",
           "control_lights": "Av: lag bare fargesensoren, til bruk i egne automasjoner.",
           "color_lights": "Følger plakatfargen mens noe spilles. Velg lys, enheter eller hele rom; bare fargelys brukes.",
