@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5 – 2026-11-27
+
+### Changed
+- New colour picking. Every pixel votes for its hue, weighted by how colourful it is; the hue band with most votes wins. Greys, near-black and near-white do not vote.
+- Skin tones get a quarter of a normal vote, so posters with large faces no longer come out peach/beige. A poster with a face and a red cape now gives red.
+- Black-and-white or washed-out artwork falls back to the app colour instead of a generic peach.
+- Higher saturation in the result (0.55–0.95), as LEDs wash out pale colours.
+
 ## 0.1.4 – 2026-11-23
 
 ### Fixed

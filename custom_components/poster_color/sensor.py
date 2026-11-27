@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import colorsys
+import math
 import logging
 import re
 from io import BytesIO
@@ -337,63 +338,79 @@ class PosterColorSensor(SensorEntity):
         }
 
 
+# Hue band for skin tones (roughly 5–42 degrees). Faces often fill a large part
+# of a poster but are rarely the colour you remember the poster by.
+SKIN_HUE = (0.015, 0.115)
+HUE_BINS = 24
+MIN_COLOURFUL_SHARE = 0.03
+
+
 def _extract_color(raw: bytes) -> tuple[tuple[int, int, int], int]:
-    """Pick a usable color from an image. Runs in the executor."""
+    """Pick the colour a person would name for an image. Runs in the executor.
+
+    Every pixel votes for its hue, weighted by how colourful it is. Greys,
+    near-black and near-white pixels do not vote, and skin tones get a much
+    smaller vote. The hue band with the most votes wins, so a poster with a
+    big face and a red cape comes out red, not peach.
+    """
     from PIL import Image  # importeres her så manglende Pillow ikke velter oppstarten
 
     with Image.open(BytesIO(raw)) as source:
         image = source.convert("RGB")
-        image.thumbnail((128, 128))
-        quantized = image.quantize(colors=8, method=Image.Quantize.MEDIANCUT)
-        palette = quantized.getpalette() or []
-        colors = quantized.getcolors() or []
+        image.thumbnail((96, 96))
+        pixels = list(_pixels(image))
 
-        best: tuple[int, int, int] | None = None
-        best_score = -1.0
+    if not pixels:
+        raise ValueError("tomt bilde")
 
-        for count, index in colors:
-            offset = index * 3
-            if offset + 2 >= len(palette):
-                continue
-            red, green, blue = palette[offset : offset + 3]
-            _, saturation, value = colorsys.rgb_to_hsv(
-                red / 255, green / 255, blue / 255
-            )
+    bins = [0.0] * HUE_BINS
+    samples: list[tuple[float, float, float]] = []  # (hue, saturation, weight)
+    for red, green, blue in pixels:
+        hue, saturation, value = colorsys.rgb_to_hsv(red / 255, green / 255, blue / 255)
+        if value < 0.15 or saturation < 0.18:
+            continue
+        weight = (saturation**1.5) * max(0.2, 1.0 - abs(value - 0.6) * 1.4)
+        if SKIN_HUE[0] <= hue <= SKIN_HUE[1] and saturation < 0.62 and value > 0.35:
+            weight *= 0.25
+        bins[int(hue * HUE_BINS) % HUE_BINS] += weight
+        samples.append((hue, saturation, weight))
 
-            # Hopp over nesten-sort, nesten-hvitt og gråtoner.
-            if value < 0.10:
-                continue
-            if saturation < 0.10 and value > 0.82:
-                continue
+    total = sum(bins)
+    if total / len(pixels) < MIN_COLOURFUL_SHARE:
+        # Black-and-white or washed-out artwork: let the app colour decide.
+        raise ValueError("bildet har for lite farge")
 
-            score = (count**0.40) * (0.20 + saturation) * (1.0 - abs(value - 0.55))
-            if score > best_score:
-                best_score = score
-                best = (red, green, blue)
+    # Smooth over neighbouring bins so a hue split across a bin edge still wins.
+    smoothed = [
+        bins[(i - 1) % HUE_BINS] * 0.5 + bins[i] + bins[(i + 1) % HUE_BINS] * 0.5
+        for i in range(HUE_BINS)
+    ]
+    winner = max(range(HUE_BINS), key=smoothed.__getitem__)
+    width = 1.5 / HUE_BINS  # winning bin plus half a bin on each side
 
-        if best is None:
-            pixels = [
-                pixel
-                for pixel in _pixels(image)
-                if max(pixel) > 24 and min(pixel) < 235
-            ]
-            if not pixels:
-                raise ValueError("fant ingen brukbare farger")
-            best = tuple(
-                sum(channel) // len(pixels) for channel in zip(*pixels)
-            )  # type: ignore[assignment]
+    # Weighted circular mean of the hues inside the winning band.
+    sin_sum = cos_sum = sat_sum = weight_sum = 0.0
+    centre = (winner + 0.5) / HUE_BINS
+    for hue, saturation, weight in samples:
+        distance = abs((hue - centre + 0.5) % 1.0 - 0.5)
+        if distance > width:
+            continue
+        angle = hue * 2 * math.pi
+        sin_sum += math.sin(angle) * weight
+        cos_sum += math.cos(angle) * weight
+        sat_sum += saturation * weight
+        weight_sum += weight
 
-    hue, saturation, _ = colorsys.rgb_to_hsv(*(channel / 255 for channel in best))
-    if saturation < 0.12:
-        hue = 0.085  # varm amber
-        saturation = 0.55
-    else:
-        saturation = min(max(saturation * 1.1, 0.45), 0.78)
+    hue = (math.atan2(sin_sum, cos_sum) / (2 * math.pi)) % 1.0
+    saturation = sat_sum / weight_sum
+    # LEDs wash out pale colours, so push saturation up for the light.
+    saturation = min(max(saturation * 1.15, 0.55), 0.95)
 
     red, green, blue = colorsys.hsv_to_rgb(hue, saturation, 0.92)
+    used_bins = sum(1 for value in bins if value > total * 0.05)
     return (
         (round(red * 255), round(green * 255), round(blue * 255)),
-        len(colors),
+        used_bins,
     )
 
 
