@@ -119,9 +119,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the poster colour sensor for one room."""
-    entity = PosterColorSensor(hass, entry)
-    hass.data.setdefault(DATA_ENTITIES, []).append(entity)
-    async_add_entities([entity])
+    async_add_entities([PosterColorSensor(hass, entry)])
 
 
 def register_refresh_service(hass: HomeAssistant) -> None:
@@ -199,6 +197,11 @@ class PosterColorSensor(SensorEntity):
         self._lock = asyncio.Lock()
 
     async def async_added_to_hass(self) -> None:
+        # Registered here, not at setup: Home Assistant removes and re-adds the
+        # entity when its entity ID is renamed.
+        entities = self.hass.data.setdefault(DATA_ENTITIES, [])
+        if self not in entities:
+            entities.append(self)
         self._last_key = self._current_key()
         self.async_on_remove(
             async_track_state_change_event(
