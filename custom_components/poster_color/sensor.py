@@ -101,6 +101,7 @@ MAX_IMAGE_BYTES = 5 * 1024 * 1024
 FETCH_TIMEOUT = 15
 ARTWORK_DELAY = 1.5
 JELLYFIN_RETRY = 8
+_API_KEY = re.compile(r"api_key=[^&\s]+", re.IGNORECASE)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -280,7 +281,12 @@ class PosterColorSensor(SensorEntity):
                         artwork_source = label
                         break
                     except Exception as err:  # noqa: BLE001
-                        _LOGGER.debug("Jellyfin %s ga ingen farge: %s", label, type(err).__name__)
+                        _LOGGER.debug(
+                            "Jellyfin %s ga ingen farge: %s: %s",
+                            label,
+                            type(err).__name__,
+                            _API_KEY.sub("api_key=***", str(err))[:200],
+                        )
                 if not found and self._jellyfin_available():
                     # Jellyfin often reports the session a few seconds after the
                     # player does; look once more shortly.
@@ -433,6 +439,12 @@ class PosterColorSensor(SensorEntity):
             if length is not None and length > MAX_IMAGE_BYTES:
                 raise ValueError("bildet er for stort")
             raw = await response.content.read(MAX_IMAGE_BYTES + 1)
+            _LOGGER.debug(
+                "Hentet %s byte, %s, starter med %r",
+                len(raw),
+                response.headers.get("Content-Type"),
+                raw[:12],
+            )
         return raw
 
     @property
