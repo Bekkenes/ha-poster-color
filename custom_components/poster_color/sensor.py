@@ -438,14 +438,14 @@ class PosterColorSensor(SensorEntity):
             length = response.content_length
             if length is not None and length > MAX_IMAGE_BYTES:
                 raise ValueError("bildet er for stort")
-            raw = await response.content.read(MAX_IMAGE_BYTES + 1)
-            _LOGGER.debug(
-                "Hentet %s byte, %s, starter med %r",
-                len(raw),
-                response.headers.get("Content-Type"),
-                raw[:12],
-            )
-        return raw
+            # content.read(n) returns only what has arrived so far, so collect
+            # the whole body, stopping once it passes the size limit.
+            buffer = bytearray()
+            async for chunk in response.content.iter_chunked(64 * 1024):
+                buffer.extend(chunk)
+                if len(buffer) > MAX_IMAGE_BYTES:
+                    raise ValueError("bildet er for stort")
+        return bytes(buffer)
 
     @property
     def extra_state_attributes(self) -> dict:

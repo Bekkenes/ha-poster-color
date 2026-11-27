@@ -6,6 +6,9 @@
 - Automatic Jellyfin artwork: when the player gives no usable colour (no artwork, a black-and-white logo, a grey still) and Home Assistant's Jellyfin integration is playing the same title, the episode image, series poster and series backdrop are tried. No configuration or API key needed. Works for any Jellyfin client, also on Apple TV / Google TV.
 - `artwork_source` attribute showing where the colour came from.
 
+### Fixed
+- Images fetched over HTTP were cut off after the first network chunk (since 0.1.4), so they could not be read. The whole body is read now, still capped at 5 MB.
+
 ## 0.1.5 – 2026-11-27
 
 ### Changed
