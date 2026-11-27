@@ -1,0 +1,97 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Poster Color",
+        "description": "Lights take the colour of what is playing. Add one entry per room.",
+        "data": {
+          "name": "Room name",
+          "media_player": "Media player",
+          "area": "Area",
+          "control_lights": "Control lights (cinema mode)",
+          "color_lights": "Colour lights",
+          "off_lights": "Lights to turn off",
+          "brightness": "Brightness",
+          "transition": "Transition",
+          "restore_delay": "Restore after",
+          "when": "When",
+          "lux_sensor": "Light sensor",
+          "lux_below": "Darker than",
+          "fallbacks": "App colours"
+        },
+        "data_description": {
+          "name": "Shown as the device name, e.g. Living room.",
+          "media_player": "The TV box or app that plays (Apple TV, Google TV, Jellyfin, Plex …).",
+          "area": "The room the entities belong to.",
+          "control_lights": "Off: only make the colour sensor, for use in your own automations.",
+          "color_lights": "Follow the poster colour while something plays. Pick lights, devices or whole areas; only colour lights are used.",
+          "off_lights": "Turned off while something plays, e.g. ceiling and floor lamps.",
+          "restore_delay": "How long a pause or stop must last before the lights come back.",
+          "when": "Dark: after sunset. Light sensor: below the chosen level (falls back to sunset if the sensor is unavailable).",
+          "fallbacks": "Colour per app when there is no poster, one per line, e.g. YouTube: #ff2828"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This media player is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Poster Color",
+        "data": {
+          "media_player": "Media player",
+          "area": "Area",
+          "control_lights": "Control lights (cinema mode)",
+          "color_lights": "Colour lights",
+          "off_lights": "Lights to turn off",
+          "brightness": "Brightness",
+          "transition": "Transition",
+          "restore_delay": "Restore after",
+          "when": "When",
+          "lux_sensor": "Light sensor",
+          "lux_below": "Darker than",
+          "fallbacks": "App colours"
+        },
+        "data_description": {
+          "media_player": "The TV box or app that plays (Apple TV, Google TV, Jellyfin, Plex …).",
+          "area": "The room the entities belong to.",
+          "control_lights": "Off: only make the colour sensor, for use in your own automations.",
+          "color_lights": "Follow the poster colour while something plays. Pick lights, devices or whole areas; only colour lights are used.",
+          "off_lights": "Turned off while something plays, e.g. ceiling and floor lamps.",
+          "restore_delay": "How long a pause or stop must last before the lights come back.",
+          "when": "Dark: after sunset. Light sensor: below the chosen level (falls back to sunset if the sensor is unavailable).",
+          "fallbacks": "Colour per app when there is no poster, one per line, e.g. YouTube: #ff2828"
+        }
+      }
+    }
+  },
+  "selector": {
+    "when": {
+      "options": {
+        "dark": "When it is dark (sunset)",
+        "lux": "Below a light-sensor level",
+        "always": "Always"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "poster_color": {
+        "name": "Poster colour"
+      }
+    },
+    "switch": {
+      "cinema_mode": {
+        "name": "Cinema mode"
+      }
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh",
+      "description": "Read the artwork again and return the colour."
+    }
+  }
+}

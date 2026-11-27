@@ -4,15 +4,17 @@
   "codeowners": [
     "@Bekkenes"
   ],
+  "config_flow": true,
   "dependencies": [
     "http",
     "media_player"
   ],
   "documentation": "https://github.com/Bekkenes/ha-poster-color",
+  "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Bekkenes/ha-poster-color/issues",
   "requirements": [
     "Pillow"
   ],
-  "version": "0.1.6"
+  "version": "0.2.0"
 }

@@ -12,8 +12,10 @@ from io import BytesIO
 import aiohttp
 import voluptuous as vol
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
-from homeassistant.core import HomeAssistant, SupportsResponse, callback
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse, callback
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -21,15 +23,23 @@ from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
 )
-from homeassistant.util import slugify
-
-from . import (
+from .const import (
+    entry_config,
     CONF_FALLBACKS,
     CONF_MEDIA_PLAYER,
-    CONF_NAME,
     DATA_ENTITIES,
     DOMAIN,
 )
+
+
+def device_info(entry: ConfigEntry) -> DeviceInfo:
+    """One service device per room, so the entities group nicely."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=entry.title,
+        manufacturer="Poster Color",
+        entry_type=DeviceEntryType.SERVICE,
+    )
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -103,51 +113,58 @@ ARTWORK_DELAY = 1.5
 JELLYFIN_RETRY = 8
 _API_KEY = re.compile(r"api_key=[^&\s]+", re.IGNORECASE)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_MEDIA_PLAYER): cv.entity_id,
-        vol.Optional(CONF_NAME, default="Plakatfarge"): cv.string,
-        vol.Optional(CONF_FALLBACKS, default={}): vol.Schema(
-            {
-                cv.string: vol.All(
-                    [vol.All(vol.Coerce(int), vol.Range(min=0, max=255))],
-                    vol.Length(min=3, max=3),
-                )
-            }
-        ),
-    }
-)
-
-
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: dict,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: dict | None = None,
 ) -> None:
-    """Set up the poster color sensor."""
-    if not hass.services.has_service(DOMAIN, "refresh"):
-
-        async def _handle_refresh(call):
-            wanted = call.data.get("entity_id")
-            results: dict[str, dict] = {}
-            for entity in hass.data.get(DATA_ENTITIES, []):
-                if wanted and entity.entity_id not in wanted:
-                    continue
-                results[entity.entity_id] = await entity.async_refresh_now()
-            return results
-
-        hass.services.async_register(
-            DOMAIN,
-            "refresh",
-            _handle_refresh,
-            schema=vol.Schema({vol.Optional("entity_id"): cv.entity_ids}),
-            supports_response=SupportsResponse.ONLY,
-        )
-
-    entity = PosterColorSensor(hass, config)
+    """Set up the poster colour sensor for one room."""
+    entity = PosterColorSensor(hass, entry)
     hass.data.setdefault(DATA_ENTITIES, []).append(entity)
     async_add_entities([entity])
+
+
+def register_refresh_service(hass: HomeAssistant) -> None:
+    """poster_color.refresh: re-read the artwork now and return the result."""
+    if hass.services.has_service(DOMAIN, "refresh"):
+        return
+
+    async def _handle_refresh(call: ServiceCall) -> dict:
+        wanted = call.data.get("entity_id")
+        results: dict[str, dict] = {}
+        for entity in hass.data.get(DATA_ENTITIES, []):
+            if wanted and entity.entity_id not in wanted:
+                continue
+            results[entity.entity_id] = await entity.async_refresh_now()
+        return results
+
+    hass.services.async_register(
+        DOMAIN,
+        "refresh",
+        _handle_refresh,
+        schema=vol.Schema({vol.Optional("entity_id"): cv.entity_ids}),
+        supports_response=SupportsResponse.ONLY,
+    )
+
+
+def parse_fallbacks(text: str | None) -> dict[str, list[int]]:
+    """'YouTube: #ff2828' or 'YouTube: 255,40,40', one per line."""
+    result: dict[str, list[int]] = {}
+    for line in (text or "").splitlines():
+        if ":" not in line:
+            continue
+        name, value = (part.strip() for part in line.rsplit(":", 1))
+        value = value.lstrip("#")
+        try:
+            if re.fullmatch(r"[0-9a-fA-F]{6}", value):
+                rgb = [int(value[i : i + 2], 16) for i in (0, 2, 4)]
+            else:
+                rgb = [int(part) for part in value.split(",")]
+        except ValueError:
+            continue
+        if name and len(rgb) == 3 and all(0 <= c <= 255 for c in rgb):
+            result[name] = rgb
+    return result
 
 
 class PosterColorSensor(SensorEntity):
@@ -155,13 +172,16 @@ class PosterColorSensor(SensorEntity):
 
     _attr_should_poll = False
     _attr_icon = "mdi:palette"
+    _attr_has_entity_name = True
+    _attr_translation_key = "poster_color"
 
-    def __init__(self, hass: HomeAssistant, config: dict) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
+        config = entry_config(entry)
         self._media_player: str = config[CONF_MEDIA_PLAYER]
-        self._fallbacks: dict = config.get(CONF_FALLBACKS) or {}
-        self._attr_name = f"{config[CONF_NAME]} plakatfarge"
-        self._attr_unique_id = f"poster_color_{slugify(self._media_player)}"
+        self._fallbacks: dict = parse_fallbacks(config.get(CONF_FALLBACKS))
+        self._attr_unique_id = f"{entry.entry_id}_poster_color"
+        self._attr_device_info = device_info(entry)
         self._attr_native_value = None
 
         self._rgb: list[int] | None = None

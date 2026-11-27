@@ -1,0 +1,97 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Poster Color",
+        "description": "Lysene får fargen fra det som spilles. Legg til én gang per rom.",
+        "data": {
+          "name": "Navn på rommet",
+          "media_player": "Mediespiller",
+          "area": "Område",
+          "control_lights": "Styr lys (kinomodus)",
+          "color_lights": "Fargelys",
+          "off_lights": "Lys som slås av",
+          "brightness": "Lysstyrke",
+          "transition": "Overgang",
+          "restore_delay": "Gjenopprett etter",
+          "when": "Når",
+          "lux_sensor": "Lyssensor",
+          "lux_below": "Mørkere enn",
+          "fallbacks": "Appfarger"
+        },
+        "data_description": {
+          "name": "Vises som navn på enheten, f.eks. Stue.",
+          "media_player": "TV-boksen eller appen som spiller (Apple TV, Google TV, Jellyfin, Plex …).",
+          "area": "Rommet entitetene hører til.",
+          "control_lights": "Av: lag bare fargesensoren, til bruk i egne automasjoner.",
+          "color_lights": "Følger plakatfargen mens noe spilles. Velg lys, enheter eller hele rom; bare fargelys brukes.",
+          "off_lights": "Slås av mens noe spilles, f.eks. tak- og gulvlamper.",
+          "restore_delay": "Hvor lenge pause eller stopp må vare før lyset kommer tilbake.",
+          "when": "Mørkt: etter solnedgang. Lyssensor: under valgt nivå (bruker solnedgang hvis sensoren er utilgjengelig).",
+          "fallbacks": "Farge per app når plakat mangler, én per linje, f.eks. YouTube: #ff2828"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Denne mediespilleren er allerede satt opp."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Poster Color",
+        "data": {
+          "media_player": "Mediespiller",
+          "area": "Område",
+          "control_lights": "Styr lys (kinomodus)",
+          "color_lights": "Fargelys",
+          "off_lights": "Lys som slås av",
+          "brightness": "Lysstyrke",
+          "transition": "Overgang",
+          "restore_delay": "Gjenopprett etter",
+          "when": "Når",
+          "lux_sensor": "Lyssensor",
+          "lux_below": "Mørkere enn",
+          "fallbacks": "Appfarger"
+        },
+        "data_description": {
+          "media_player": "TV-boksen eller appen som spiller (Apple TV, Google TV, Jellyfin, Plex …).",
+          "area": "Rommet entitetene hører til.",
+          "control_lights": "Av: lag bare fargesensoren, til bruk i egne automasjoner.",
+          "color_lights": "Følger plakatfargen mens noe spilles. Velg lys, enheter eller hele rom; bare fargelys brukes.",
+          "off_lights": "Slås av mens noe spilles, f.eks. tak- og gulvlamper.",
+          "restore_delay": "Hvor lenge pause eller stopp må vare før lyset kommer tilbake.",
+          "when": "Mørkt: etter solnedgang. Lyssensor: under valgt nivå (bruker solnedgang hvis sensoren er utilgjengelig).",
+          "fallbacks": "Farge per app når plakat mangler, én per linje, f.eks. YouTube: #ff2828"
+        }
+      }
+    }
+  },
+  "selector": {
+    "when": {
+      "options": {
+        "dark": "Når det er mørkt (solnedgang)",
+        "lux": "Under et nivå på lyssensoren",
+        "always": "Alltid"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "poster_color": {
+        "name": "Plakatfarge"
+      }
+    },
+    "switch": {
+      "cinema_mode": {
+        "name": "Kinomodus"
+      }
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Oppdater",
+      "description": "Les plakaten på nytt og returner fargen."
+    }
+  }
+}

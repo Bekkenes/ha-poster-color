@@ -54,19 +54,31 @@ folder and restart Home Assistant.
 
 ## Configuration
 
-```yaml
-sensor:
-  - platform: poster_color
-    media_player: media_player.living_room_apple_tv
-    name: Living room
-    # optional: add or override the app colours used when there is no artwork
-    fallbacks:
-      YouTube: [255, 40, 40]
-      TiviMax: [0, 120, 200]
-```
+Everything is set up in the UI, one entry per room:
 
-This creates `sensor.living_room_plakatfarge` (the configured `name` plus
-` plakatfarge`; rename as you like).
+**Settings → Devices & services → Add integration → Poster Color**
+
+| Field | What it does |
+|---|---|
+| Room name / Area | Name of the room; the entities are placed in that area |
+| Media player | The TV box or app that plays (Apple TV, Google TV, Jellyfin, Plex …) |
+| Control lights | Off = only create the colour sensor, for your own automations |
+| Colour lights | Follow the poster colour while something plays. Pick lights, devices or whole areas; only colour-capable lights are used, and lights added to the area later are included |
+| Lights to turn off | Turned off while something plays (ceiling, floor lamps …) |
+| Brightness, Transition | How the colour lights are set |
+| Restore after | How long a pause/stop must last before the lights come back |
+| When | Always, when it is dark (sunset), or below a light-sensor level |
+| App colours | Colour per app when there is no poster, one per line: `YouTube: #ff2828` |
+
+Change anything later with **Configure** on the integration.
+
+Each room gets:
+
+- `sensor.<room>_poster_colour` – the colour (see attributes below)
+- `switch.<room>_cinema_mode` – turns the light control on/off. While it is on,
+  the lights are snapshotted when playback starts, follow the poster colour,
+  and are restored after the chosen delay when playback stops. Lights that are
+  unavailable (switched off at the wall) are skipped.
 
 Attributes on the sensor:
 
@@ -90,7 +102,9 @@ target:
   entity_id: sensor.living_room_plakatfarge
 ```
 
-## Example automation
+## Your own automation (optional)
+
+Turn off **Control lights** and use the sensor yourself, for example:
 
 `examples/kinomodus_stue.yaml` contains a complete cinema-mode automation:
 

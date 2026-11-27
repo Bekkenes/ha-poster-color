@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 – 2026-11-27
+
+### Added
+- Set-up in the UI (config flow): one entry per room, with media player, area, colour lights, lights to turn off, brightness, transition, restore delay, when (dark/light sensor/always) and app colours. Everything can be changed later under Configure.
+- Built-in cinema mode with a `switch` per room: snapshots the lights, follows the poster colour while playing and restores the lights after the delay. Lights can be picked by entity, device or area; unavailable lights are skipped.
+- English and Norwegian (bokmål) translations.
+
+### Changed
+- **Breaking:** YAML configuration (`sensor: - platform: poster_color`) is removed. Add the room in the UI instead.
+
 ## 0.1.6 – 2026-11-27
 
 ### Added
