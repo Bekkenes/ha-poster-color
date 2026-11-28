@@ -185,18 +185,28 @@ class CinemaModeSwitch(SwitchEntity, RestoreEntity):
         if player is None or player.state != "playing":
             await self._restore()
 
+    def _lux_below(self) -> bool | None:
+        """True/False from the light sensor, None when none is set or it is unavailable."""
+        sensor = self._config.get(CONF_LUX_SENSOR)
+        if not sensor:
+            return None
+        state = self.hass.states.get(sensor)
+        try:
+            return float(state.state) < float(self._config.get(CONF_LUX_BELOW, DEFAULT_LUX_BELOW))
+        except (AttributeError, TypeError, ValueError):
+            return None
+
     def _dark_enough(self) -> bool:
         when = self._config.get(CONF_WHEN, WHEN_DARK)
         if when == WHEN_ALWAYS:
             return True
-        if when == WHEN_LUX and self._config.get(CONF_LUX_SENSOR):
-            state = self.hass.states.get(self._config[CONF_LUX_SENSOR])
-            try:
-                return float(state.state) < float(self._config.get(CONF_LUX_BELOW, DEFAULT_LUX_BELOW))
-            except (AttributeError, TypeError, ValueError):
-                pass  # sensor unavailable: fall back to the sun
+        lux = self._lux_below()
+        if when == WHEN_LUX and lux is not None:
+            return lux
         sun = self.hass.states.get("sun.sun")
-        return sun is None or sun.state == "below_horizon"
+        after_sunset = sun is None or sun.state == "below_horizon"
+        # "Dark": after sunset, or a dark room (closed curtains) if a light sensor is set.
+        return after_sunset or bool(lux)
 
     def _color_lights(self) -> list[str]:
         return resolve_lights(self.hass, self._config.get(CONF_COLOR_LIGHTS), True)

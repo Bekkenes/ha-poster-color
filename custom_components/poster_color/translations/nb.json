@@ -27,7 +27,7 @@
           "color_lights": "Følger plakatfargen mens noe spilles. Velg lys, enheter eller hele rom; bare fargelys brukes.",
           "off_lights": "Slås av mens noe spilles, f.eks. tak- og gulvlamper.",
           "restore_delay": "Hvor lenge pause eller stopp må vare før lyset kommer tilbake.",
-          "when": "Mørkt: etter solnedgang. Lyssensor: under valgt nivå (bruker solnedgang hvis sensoren er utilgjengelig).",
+          "when": "Mørkt: etter solnedgang, eller under lux-grensen hvis en lyssensor er valgt. Lyssensor: bare sensoren avgjør.",
           "fallbacks": "Farge per app når plakat mangler, én per linje, f.eks. YouTube: #ff2828"
         }
       }
@@ -61,7 +61,7 @@
           "color_lights": "Følger plakatfargen mens noe spilles. Velg lys, enheter eller hele rom; bare fargelys brukes.",
           "off_lights": "Slås av mens noe spilles, f.eks. tak- og gulvlamper.",
           "restore_delay": "Hvor lenge pause eller stopp må vare før lyset kommer tilbake.",
-          "when": "Mørkt: etter solnedgang. Lyssensor: under valgt nivå (bruker solnedgang hvis sensoren er utilgjengelig).",
+          "when": "Mørkt: etter solnedgang, eller under lux-grensen hvis en lyssensor er valgt. Lyssensor: bare sensoren avgjør.",
           "fallbacks": "Farge per app når plakat mangler, én per linje, f.eks. YouTube: #ff2828"
         }
       }

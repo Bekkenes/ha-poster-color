@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 – 2026-11-28
+
+### Changed
+- "When it is dark" now also starts cinema mode when the room is below the light-sensor level, if a light sensor is chosen (e.g. curtains closed in the daytime). Before, it only looked at sunset.
+
 ## 0.2.0 – 2026-11-27
 
 ### Added

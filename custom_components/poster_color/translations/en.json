@@ -27,7 +27,7 @@
           "color_lights": "Follow the poster colour while something plays. Pick lights, devices or whole areas; only colour lights are used.",
           "off_lights": "Turned off while something plays, e.g. ceiling and floor lamps.",
           "restore_delay": "How long a pause or stop must last before the lights come back.",
-          "when": "Dark: after sunset. Light sensor: below the chosen level (falls back to sunset if the sensor is unavailable).",
+          "when": "Dark: after sunset, or below the light-sensor level if a sensor is chosen. Light sensor: only the sensor decides.",
           "fallbacks": "Colour per app when there is no poster, one per line, e.g. YouTube: #ff2828"
         }
       }
@@ -61,7 +61,7 @@
           "color_lights": "Follow the poster colour while something plays. Pick lights, devices or whole areas; only colour lights are used.",
           "off_lights": "Turned off while something plays, e.g. ceiling and floor lamps.",
           "restore_delay": "How long a pause or stop must last before the lights come back.",
-          "when": "Dark: after sunset. Light sensor: below the chosen level (falls back to sunset if the sensor is unavailable).",
+          "when": "Dark: after sunset, or below the light-sensor level if a sensor is chosen. Light sensor: only the sensor decides.",
           "fallbacks": "Colour per app when there is no poster, one per line, e.g. YouTube: #ff2828"
         }
       }
